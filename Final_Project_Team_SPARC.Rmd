@@ -1,0 +1,663 @@
+---
+output:
+  html_document:
+    theme: journal
+    toc: TRUE
+    toc_float: TRUE  
+    toc_depth: 3
+---
+
+Medical Recommender System
+===============================
+
+*Establishing a Medical Recommender System that can give recommendation with an excellent efficiency and accuracy based on diagnosis and symptoms.*
+
+#### DATA 607 Final Project
+#### May 12, 2019
+#### Team SPARC
+
+* [Santosh Cheruku](https://github.com/san123i)
+* [Samantha Deokinanan](https://github.com/greeneyefirefly)
+* [Rajwant Mishra](https://github.com/rajwantmishra)
+* [Priya Shaji](https://github.com/PriyaShaji)
+
+#### Github 
+
+All the project data sets, codes, and graphics are available under [Final Project repository](https://github.com/greeneyefirefly/MSDS-DATA-607-FinalProject) on Github.
+
+#### Rpub 
+
+The presentation is published on [Final Project](http://rpubs.com/greeneyefirefly/data607-FinalProject) Rpub.
+
+#### Project Documentation 
+
+All the project work and ideas were documented and available under [Project Documentation](https://github.com/greeneyefirefly/MSDS-DATA-607-FinalProject) on Github.
+
+```{r setup, include=FALSE}
+##################################################################
+#               Add All Required R Packages Here              #
+##################################################################
+library(tidyverse)
+library(rpart)
+library(rpart.plot)
+library(caret)
+library(kableExtra)
+library(tidytext)
+library(sentimentr)
+library(SnowballC)
+library(lattice)
+library(FSA)
+library(DT)
+library(lubridate)
+library(corrr)
+library(corrplot)
+library(psych)
+library(readxl)
+library(plotly)
+library(lme4)
+library(lmerTest)
+library(tm)
+library(e1071)
+library(gmodels)
+library(mongolite)
+library(gridExtra)
+library(RMySQL)
+```
+
+***
+
+### Overview 
+
+According to the World Health Organization, more than 42% medication errors are caused by doctors because experts write the prescription according to their experiences which are quite limited. With the advancement of technology and data analytic technique such as data mining and recommender systems, it is possibilities to explore potential knowledge from diagnosis history records and help doctors to prescribe medication correctly. A recommendation of right medicine based on diagnosis can target healing and decreasing trial-and-error when prescribing drugs. This can may further decrease undesirable drug side-effects. Therefore, in this project, we developed two recommender systems that can give a medical recommendation with an excellent efficiency and accuracy based on diagnosis and symptoms. 
+
+#### Limitations
+
+Team SPARC is aware that this recommendation system will not be quite accurate since we are not specialist to say one medicine can indeed be recommended instead of another, nor can an performance test be conducted at this time. In addition, there is the limitation on data avabliable, for instance, there is no patient information, true diagnosis, cost of medicine, the insurance company that covers the specific type of drug, etc since these are not easily obtainable. Therefore, our model is thought as a basis in the right direction, and with more data, the better the recommendation can become.
+
+***
+### Methodology   
+#### Approaching the Problem  {.tabset .tabset-fade .tabset-pills}
+
+Team SPARC aims to design medical recommender systems that applies supervised learning algorithms. In Machine Learning, tree-based techniques and Bayesian Classifier are popular tools to build prediction models. Decision trees and Bayesian can be intuitively understood as classifying different groups (labels), given their theories. By utilizing Naive Bayesian Classifier method, a medicine recommender system was developed in which users input the area of the body they are experiencing symptom, the kind of symptom, and the system would then recommend highly effective drugs that can treat such illness. The other system utilizes the decision tree algorithm to predict the events that can lead diabetic patients to a change in their medication.
+
+Moreover, statistical inferences were performed to investigate the following:
+
+1. A sentimental analysis was conducted to examine how well, or not so well, drug ratings are actually reflective of their effectiveness and side effects.
+2. A statistic test to understand how drug benefits and side effects affect actual drug rating scores. 
+
+```{r echo=FALSE}
+knitr::include_graphics("https://raw.githubusercontent.com/greeneyefirefly/MSDS-DATA-607-FinalProject/master/workflow.png")
+```
+
+***
+##### Data Collection
+
+Data sets are retrieved from:
+
+Felix Gräßer, Surya Kallumadi, Hagen Malberg, and Sebastian Zaunseder. 2018. Aspect-Based Sentiment Analysis of Drug Reviews Applying Cross-Domain and Cross-Data Learning. In Proceedings of the 2018 International Conference on Digital Health (DH '18). ACM, New York, NY, USA, 121-125. DOI: [https://doi.org/10.1145/3194658.3194677]
+
+* These data sets provide patient reviews on specific drugs along with related conditions. Reviews and ratings are grouped into reports on the three aspects benefits, side effects and overall comment.    
+
+Beata Strack, Jonathan P. DeShazo, Chris Gennings, Juan L. Olmo, Sebastian Ventura, Krzysztof J. Cios, and John N. Clore, “Impact of HbA1c Measurement on Hospital Readmission Rates: Analysis of 70,000 Clinical Database Patient Records,” BioMed Research International, vol. 2014, Article ID 781670, 11 pages, 2014.
+
+* This data set represents 10 years (1999-2008) of clinical care at 130 US hospitals and integrated delivery networks. It includes over 50 features representing patient and hospital outcomes such as inpatient encounter (a hospital admission), diabetic encounter, length of stay, race, gender, age, admission type, time in hospital, medical specialty of admitting physician, number of lab test performed, HbA1c test result, diagnosis, number of medication, diabetic medications, number of outpatient, inpatient, and emergency visits in the year before the hospitalization, etc.  
+
+***
+##### Storage & Retrieve
+
+The following is a sample of how the data was read from the respective sources. The full code on web scraping and database storage can be found at [Final Project Supporting Rmd](https://github.com/greeneyefirefly/MSDS-DATA-607-FinalProject) on Github. 
+
+<details>
+  <summary> *MySQL Database Code Sample* </summary>
+```{r eval=FALSE}
+CheckDB <- function() {
+# Open Connection 
+  con2 <- dbConnect(RMySQL::MySQL(), dbname = "Data607FinalProject", host="localhost", user="root",password= "Sparc@DATA_607")
+# Drop Table if Exists 
+  
+if(dbExistsTable(con2, "dataset")){
+    dbRemoveTable(con2,"dataset")
+  }
+ 
+# Create first table for dataset
+query <- "CREATE TABLE `dataset` (  
+`Drug_id`  INT AUTO_INCREMENT,
+`urlDrugName` VARCHAR(45) NULL,
+`rating` VARCHAR(45) NULL,
+`effectiveness` VARCHAR(45) NULL, 
+`sideEffects` VARCHAR(45) NULL, 
+`condition` VARCHAR(45) NULL,
+`benefitsReview` VARCHAR(45) NULL,
+`sideEffectsReview` VARCHAR(45) NULL,
+`commentsReview` VARCHAR(45) NULL,
+PRIMARY KEY (`Drug_id`))"
+tab1 <- dbSendQuery(con2,query)
+tab1data <- dbFetch(tab1)
+
+# Close Connection
+dbDisconnect(con2)
+}
+
+# Update tables
+updateDB <- function(urlDrugName, rating, effectiveness, sideEffects, condition, benefitsReview, sideEffectsReview, commentsReview)
+    {
+  con2 <- dbConnect(RMySQL::MySQL(), dbname = "Data607FinalProject", host="localhost", user="root",password= "root")
+  
+# Update dataset table 
+query <- sprintf("insert into dataset (DrugName, Rating, Effectiveness, SideEffects, Condition, BenefitsReview, SideEffectsReview, CommentsReview) values('%s','%s','%s','%s','%s','%s','%s','%s')",urlDrugName, rating, effectiveness, sideEffects, condition, benefitsReview, sideEffectsReview, commentsReview)
+  print (query)
+tab1 <- dbSendQuery(con2,query)
+tab1data <- dbFetch(tab1)
+
+# Get 'Drug_id' to update dataset table
+query <- sprintf("select Drug_id from dataset where DrugName='%s', Rating='%s', Effectiveness='%s', SideEffects='%s', Condition='%s', BenefitsReview='%s', SideEffectsReview='%s', CommentsReview='%s' limit 1",urlDrugName, rating, effectiveness, sideEffects, condition, benefitsReview, sideEffectsReview, commentsReview)
+  
+tab1 <- dbSendQuery(con2,query)
+tab1data <- dbFetch(tab1)
+data_id <- tab1data$Drug_id
+
+# Close Connection
+dbDisconnect(con2)
+}
+```
+</details>
+
+***
+##### Our Data
+
+> Drug Review Data Set
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+train <- read_tsv("drugLibTrain_raw.tsv", col_names = TRUE, cols(
+  X1 = col_double(),  urlDrugName = col_character(),  rating = col_double(),  effectiveness = col_factor(),  sideEffects = col_factor(),  condition = col_factor(),
+  benefitsReview = col_character(),  sideEffectsReview = col_character(),  commentsReview = col_character()
+))
+
+test <- read_tsv("drugLibTest_raw.tsv", col_names = TRUE, cols(
+  X1 = col_double(),  urlDrugName = col_character(),  rating = col_double(),  effectiveness = col_factor(),  sideEffects = col_factor(),  condition = col_factor(),
+  benefitsReview = col_character(),  sideEffectsReview = col_character(),  commentsReview = col_character()
+))
+
+dataset <- full_join(train, test)
+
+dataset$effectiveness <- as.factor(dataset$effectiveness)
+dataset$sideEffects <- as.factor(dataset$sideEffects)
+dataset$effectiveness <- factor(dataset$effectiveness , levels = levels(dataset$effectiveness)[c(3, 2, 5, 4, 1)])
+dataset$sideEffects <- factor(dataset$sideEffects , levels = levels(dataset$sideEffects)[c(4, 2, 5, 1, 3)])
+
+kable(head(dataset)) %>%
+  kable_styling() %>%
+  scroll_box(width = "100%", height = "300px")
+```
+
+> Diabetes Data Set
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+diabetes <- read_csv("diabetic_data.csv")
+
+kable(head(diabetes)) %>%
+  kable_styling() %>%
+  scroll_box(width = "100%", height = "300px")
+```
+
+***
+### Results & Discussion {.tabset .tabset-fade .tabset-pills}
+***
+#### Naive Bayesian Classifier 
+
+Naive Bayes classifiers are a collection of classification algorithms based on Bayes’ Theorem. It is not a single algorithm but a family of algorithms where all of them share a common principle, i.e. every pair of features being classified is independent of each other. It assumes there is no dependency between the predictors. 
+
+Naive Bayesian classifiers have several advantages:
+
+* They are extremely fast for both training and prediction  
+* They provide straightforward probabilistic prediction  
+* They are often very easily interpretable  
+* They have very few (if any) tunable parameters  
+
+These advantages mean a naive Bayesian classifier is often a good choice as an initial baseline classification. It tend to perform especially well when the naive assumptions actually match the data but this is very rare in practice.
+
+<details>
+  <summary> *Naive Baysian Classifier* </summary>
+```{r eval=FALSE}
+library(e1071)
+train_Data$urlDrugName <- as.factor(train_Data$urlDrugName)
+train_Data$effectiveness <- as.factor(train_Data$effectiveness)
+
+fitdefaultRadial <- e1071::svm(urlDrugName~condition + effectiveness  , train_Data[which(train_Data$urlDrugName %in% c("biaxin","lamictal","depakene","sarafem")),])
+fitdefaultRadial
+
+fitdefaultpolynomial <- e1071::svm(urlDrugName~condition + effectiveness  ,data= train_Data[1:5,] , kernel= "polynomial")
+fitdefaultpolynomial
+
+fitdefaultsigmoid <- e1071::svm(urlDrugName~condition + effectiveness  ,data= train_Data[1:5,] , kernel= "sigmoid")
+
+## Predict 
+predictdefaultRad <- predict(fitdefaultRadial,train_Data[which(train_Data$urlDrugName %in% c("biaxin","lamictal","depakene","sarafem")),])
+predictdefaultPloy <- predict(fitdefaultpolynomial,train_Data[1:5,])
+predictdefaultSig <- predict(fitdefaultsigmoid,train_Data[1:5,])
+
+## Prepare for Naive Bayes  
+
+(funReplace <- content_transformer(function(x, pattern, rep="") str_replace(x,pattern,rep)))
+(getPattern <- content_transformer(  function(x,pattern)( str_extract_all(x, pattern))))
+# EMail
+regEmail <-"(?<=(From|Delivered-To:|To:){1} )(<?[[:alnum:]]+@[[:alnum:].?-?]+>?)"
+(getEmail<- content_transformer(function(x,pattern)(str_extract_all(x,regEmail)))) 
+# IP Address
+regIP <- "\\b\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\b"
+(getIP<- content_transformer(function(x,pattern)(str_extract_all(x,regIP)))) 
+# Email Type
+regEmailType <- "(?<=(Content-Type:){1} )([[:alpha:]]+/[[:alpha:]]+)"
+(getEmailType <- content_transformer(function(x,pattern)(str_extract_all(x,regEmailType)))) 
+# Subject
+regSub <- "(?<=(Subject:){1} )([[:graph:] [:graph:]]+)"
+
+(getSubject <- content_transformer(function(x,pattern)(str_extract_all(x,regSub))))
+(getBody<- content_transformer(function(x)(x[(str_which(x,regSub)):length(x)])))
+(getBodyLen <- content_transformer(function(x)( str_count(x))))
+
+# Remove HTML TAG from
+(cleanHTML <- content_transformer (function(x) {
+  return(gsub("<.*?>", "", x))
+}))
+
+# Apply Naive Bayes
+
+train_classifier <- naiveBayes(new_train,train$urlDrugName)
+    
+# Will save Model Mong_train_classifier to Mongo
+Mong_train_classifier <- naiveBayes(Mongo_Train_For_Model,train$urlDrugName)
+
+test_predict <- predict(train_classifier, new_test)
+
+forcats::fct_count(test$urlDrugName)
+forcats::fct_count(test_predict,sort = TRUE)
+
+#------------------------------------------------------------------------------
+## User Input Function
+
+ usr_ask <- name <- function(dtquestion ) {
+
+ # tm_dte_condition <- data.frame(doc_id = test$urlDrugName,text = test$condition)
+ # tm_dte_condition_User <- data.frame(doc_id = c("NoDRUG", "NoNEWDRUG",""),text = 
+ #                                       c("I am in depression",
+ #                                         "I have sinus",
+ #                                         "I have throt infection"))
+   
+tm_dte_condition_User <- data.frame(doc_id = c(rep("noDrug",1,length(dtquestion[,1]))), text = dtquestion$text )
+ 
+corpus_condition_test_user <- VCorpus(DataframeSource(tm_dte_condition_User))
+ 
+# Use only 5 most frequent words (fivefreq) to build the DTM
+# Find terms with frequecy at least 5
+freq_words_user <- findFreqTerms(corpus_condition_clean_dtm,1)
+
+dtm.train.nb <- DocumentTermMatrix(corpus_condition, control=list(dictionary = freq_words, removePunctuation = TRUE, tolower = TRUE, stripWhitespace= TRUE, removeNumbers = TRUE, stopwords = TRUE))
+
+dtm.test.nb <- DocumentTermMatrix(corpus_condition_test_user, control=list(dictionary = freq_words, removePunctuation = TRUE, tolower = TRUE, stripWhitespace= TRUE, removeNumbers = TRUE, stopwords = TRUE))
+
+# Function to convert the word frequencies to yes (presence) and no (absence) labels
+convert_count <- function(x) {
+  y <- ifelse(x > 0, 1,0)
+  y <- factor(y, levels=c(0,1), labels=c("No", "Yes"))
+  y
+}
+
+# Apply the convert_count function to get final training and testing DTMs
+trainNB <- apply(dtm.train.nb, 2, convert_count)
+testNB <- apply(dtm.test.nb, 2, convert_count)
+nav_lap <- naiveBayes(trainNB, train$urlDrugName, laplace = 1) 
+red_lap <- predict(nav_lap,testNB)
+```
+</details>
+
+
+<style>
+body {
+    margin: 0;            /* Reset default margin */
+}
+iframe {
+    display: block;       /* iframes are inline by default */
+    background: #000;
+    border: none;         /* Reset default border */
+    height: 1000px;        /* Viewport-relative units */
+    width: 70vw;
+}
+.container-fluid.main-container {
+    max-width: 99%;
+}
+
+iframe navbar navbar-fixed-bottom,  iframe div#pageheader, iframe  navbar .navbar-inner
+{
+display: none;
+}
+
+</style>
+<iframe src="https://rajwantmishra.shinyapps.io/SymptomsDiseasesRecommendation/" width="400" height="1000"></iframe>
+
+Access all the codes avaliable for this [Shiny App here](https://github.com/Rajwantmishra/msds/tree/master/607/Project5/607Project/checkme).
+
+***
+
+#### Decision Tree 
+
+A decision tree is a graphical representation that makes use of branching methodology to exemplify all possible outcomes of a decision, based on certain conditions. In a decision tree, the internal node represents a test on the attribute, each branch of the tree represents the outcome of the test and the leaf node represents a particular class label i.e. the decision made after computing all of the attributes. The classification rules are represented through the path from root to the leaf node. There are two types of Decision Trees:
+
+* Classification Trees - These are considered as the default kind of decision trees used to separate a data set into different classes, based on the response variable. These are generally used when the response variable is categorical in nature.
+
+* Regression Trees - When the response or target variable is continuous or numerical, regression trees are used. These are generally used in predictive type of problems when compared to classification.
+
+These machine learning algorithms help make decisions under uncertainty and help you improve communication, as they present a visual representation of a decision situation. Decision tree machine learning algorithms help a data scientist capture the idea that if a different decision was taken, then how the operational nature of a situation or model would have changed intensely. Decision trees can be explained to anyone from a non-technical background as they are self-explanatory.It does not require making any assumption on the linearity in the data and hence can be used in circumstances where the parameters are non-linearly related. Drawbacks of using Decision Tree machine learning algorithms is that the more the number of decisions in a tree, less is the accuracy of any expected outcome. Thus, we split in a few trees. 
+
+Applications of Decision Tree Machine Learning Algorithm  
+
+* In finance for option pricing  
+* Healthcare to identify at-risk patients and disease trends  
+
+In this project, multiple tries were performed to correct over-fitting problem by pruning, i.e. to reduce the size of decision trees by removing sections of the tree that provide little power to classify instances, thus making the tree less complex. 
+
+<details>
+  <summary> *Decision Tree* </summary>
+```{r}
+set.seed(525)
+# Remove unncessary columns and items
+diabetes <- subset(diabetes, select = -c(1:2,6:9,11:12,27:28,30,33,36:41,43:47))
+diabetes <- diabetes[diabetes$race != "?",] 
+diabetes <- diabetes[diabetes$diag_1 != "?",] 
+diabetes <- diabetes[diabetes$diag_2 != "?",] 
+diabetes <- diabetes[diabetes$diag_3 != "?",] 
+diabetes$change <- ifelse(diabetes$change == "Ch", "Change", "No Change") 
+
+# First split is if patient use a medicine or not to treat their diabetes
+diabetes1 <- gather(diabetes, "drug", "amount", 17:24)
+diabetes1$drugbin <- ifelse(diabetes1$amount == "Steady" | diabetes1$amount == "Up" | diabetes1$amount == "Down", "Use a Medicine", "No Medicine") 
+diabetes1 <- cbind(diabetes1[c(4:10,14)],lapply(diabetes1[c(1:3,15:22)], factor))
+
+trainingdb <- createDataPartition(diabetes1$drugbin, p=.75, list=FALSE)
+Traindb <-diabetes[trainingdb,]
+Testdb <- diabetes[-trainingdb,]
+
+c(nrow(Traindb),nrow(Testdb))
+```
+</details>
+
+***
+
+> What events would lead to change in diabetes medication?
+
+Testing predictors for patients hospital outcomes such as length of stay, laboratory tests, number of lab test performed, number of diagnosis, number of medication, diabetic medications, number of outpatient, inpatient, and emergency visits in the year before the hospitalization.
+
+```{r}
+rtree_fit1 <- rpart(change ~ time_in_hospital + num_lab_procedures + number_outpatient + number_emergency + number_inpatient + number_diagnoses, data = Traindb, method = "class", minsplit = 20, minbucket = 5, cp = 0.001)
+rpart.rules(rtree_fit1, cover = TRUE)
+```
+
+***
+
+> Does A1C results lead to a change in medication?
+
+Testing the previous predictors in additional to patients A1C results. The decision tree changes as a result.
+
+```{r}
+# Add A1C level
+rtree_fit2 <- rpart(change ~ time_in_hospital + num_lab_procedures + number_outpatient + number_emergency + number_inpatient + number_diagnoses + A1Cresult, data = Traindb, method = "class", minsplit = 20, minbucket = 5, cp = 0.001)
+rpart.rules(rtree_fit2, cover = TRUE)
+```
+
+***
+
+> Measuring the prediction fit of the analysis
+
+In the both example, approximately 46% of training cases are changes in medication. The first example had the splitting criteria of “time spent in hospital”, which separates the data into a set of nine cases, while in the second example, the splitting criteria was “patient A1c result”, which separates the data into a set of eight cases. Moreover, the graphs show what is the optimal level for the decision tree. Thus, pruning can be done with the appropriate complexity parameter (cp) of 0.0016 and 0.0048, respectively.
+
+```{r}
+printcp(rtree_fit1)
+plotcp(rtree_fit1, lty = 3, col = 1)
+rtree_fit1 <- prune(rtree_fit1, cp = 0.0016)
+```
+
+```{r echo=FALSE, fig.align="center"}
+# rpart.plot(rtree_fit1, type = 5, extra = 100, branch.lty = 3, box.palette = "RdYlGn", tweak = 1.5)
+knitr::include_graphics("https://raw.githubusercontent.com/greeneyefirefly/MSDS-DATA-607-FinalProject/master/picture%201.png") 
+```
+
+```{r}
+printcp(rtree_fit2)
+plotcp(rtree_fit2, lty = 3, col = 1)
+rtree_fit2 <- prune(rtree_fit2, cp = 0.0048)
+```
+
+```{r echo=FALSE, fig.align="center"}
+# rpart.plot(rtree_fit2, type = 5, extra = 100, branch.lty = 3, box.palette = "RdYlGn", tweak = 1.5)
+knitr::include_graphics("https://raw.githubusercontent.com/greeneyefirefly/MSDS-DATA-607-FinalProject/master/picture%202.png")
+```
+
+***
+#### Statisical Analysis {.tabset .tabset-fade .tabset-pills}
+***
+**Sentimental Analysis**  
+
+***
+
+Using the effectiveness and the side effects reviews from the Drug Reviews data, a sentimental analysis was done to identify the user's experiences with the specific drug. In this analysis, the lexicon AFINN words and associated ratings from Finn Årup Nielsen were used. Moreover, it was found that some results would have an overall negative experience even though their drug ratings were very high, conditions were establish to reverse sentiment ratings if they are not accurate representations of the reviews. This will be statistically tested later after examination of the reviews.
+
+As a result, firstly, the review of drug benefits shows that there are more true positive sentiments for highly rated drugs than low rated. However, the analysis did produced 15% of sentiment that are inaccurate representations of how the drug benefit review and drug rating are classified in this data set. 
+
+<details>
+  <summary> *Drug Benefit Reviews* </summary>
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+words <- dataset %>%
+  select(urlDrugName, rating, effectiveness, condition, benefitsReview) %>%
+  unnest_tokens(word, benefitsReview) %>%
+  filter(!word %in% stop_words$word,
+         str_detect(word, "^[a-z']+$"))
+afinn <- get_sentiments("afinn") %>% mutate(word = wordStem(word))
+reviews.afinn <- words %>% inner_join(afinn, by = "word")
+
+reviews.afinn$EffectRate <- as.numeric(recode(reviews.afinn$effectiveness, "Highly Effective" = "3", "Considerably Effective" = "2", "Moderately Effective" = "1", "Marginally Effective" = "1", "Ineffective" = "1"))
+
+# Reverse rating
+reviews.afinn$TrueEffectScore = ifelse(reviews.afinn$EffectRate >= 2 & reviews.afinn$score < 0, abs(reviews.afinn$score), ifelse(reviews.afinn$EffectRate == 1 & reviews.afinn$score > 0,(reviews.afinn$score)*(-1), reviews.afinn$score))
+
+word_summary <- reviews.afinn %>%
+  group_by(word) %>%
+  summarise(mean_rating = mean(rating), score = max(TrueEffectScore), count_word = n()) %>%
+  arrange(desc(count_word))
+
+review_summary <- reviews.afinn %>%
+  group_by(condition) %>%
+  summarise(mean_rating = mean(rating), sentiment = mean(TrueEffectScore))
+
+x_mid = 5
+```
+</details>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+review_summary %>% 
+  mutate(quadrant = case_when(mean_rating > x_mid & sentiment > 0 ~ "Positive-Postive", mean_rating <= x_mid & sentiment > 0 ~ "Negative-Positive", mean_rating <= x_mid & sentiment <= 0 ~ "Negative-Negative", TRUE ~ "Positive-Negative")) %>% ggplot(aes(x = mean_rating, y = sentiment, color = quadrant)) + geom_hline(yintercept=0, color = "black", size = 0.5) + geom_vline(xintercept = x_mid, color = "black", size = 0.5) + guides(color = FALSE) + scale_color_manual(values = c("blue", "red", "red","blue")) + ggtitle("Rating vs Sentiment Rating of Effectiveness") + geom_point()
+```
+
+Secondly, the review of drug side effect review shows that there are also more true positive sentiments for highly rated drugs than low rated. In this case, the analysis did produced 18% of sentiment that are inaccurate representations of how the drug side effect reviews and drug rating are classified in this data set. 
+
+<details>
+  <summary> *Side Effect Reviews* </summary>
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+words <- dataset %>%
+  select(urlDrugName, rating, sideEffects, condition, sideEffectsReview) %>%
+  unnest_tokens(word, sideEffectsReview) %>%
+  filter(!word %in% stop_words$word,
+         str_detect(word, "^[a-z']+$"))
+afinn <- get_sentiments("afinn") %>% mutate(word = wordStem(word))
+reviews.afinn <- words %>% inner_join(afinn, by = "word")
+
+reviews.afinn$SDEffectRate <- as.numeric(recode(reviews.afinn$sideEffects, "No Side Effects" = "1", "Mild Side Effects" = "2", "Moderate Side Effects" = "2", "Severe Side Effects" = "3", "Extremely Severe Side Effects" = "3"))
+
+reviews.afinn$TrueSDEffectScore = ifelse(reviews.afinn$SDEffectRate <= 2 & reviews.afinn$score < 0, abs(reviews.afinn$score), ifelse(reviews.afinn$SDEffectRate == 3 & reviews.afinn$score > 0,(reviews.afinn$score)*(-1), reviews.afinn$score))
+
+word_summary <- reviews.afinn %>%
+  group_by(word) %>%
+  summarise(mean_rating = mean(rating), score = max(TrueSDEffectScore), count_word = n()) %>%
+  arrange(desc(count_word))
+
+review_summary <- reviews.afinn %>%
+  group_by(condition) %>%
+  summarise(mean_rating = mean(rating), sentiment = mean(TrueSDEffectScore))
+```
+</details>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+review_summary %>% 
+  mutate(quadrant = case_when(mean_rating > x_mid & sentiment > 0 ~ "Positive-Postive", mean_rating <= x_mid & sentiment > 0 ~ "Negative-Positive", mean_rating <= x_mid & sentiment <= 0 ~ "Negative-Negative", TRUE ~ "Positive-Negative")) %>% ggplot(aes(x = mean_rating, y = sentiment, color = quadrant)) + geom_hline(yintercept=0, color = "black", size = 0.5) + geom_vline(xintercept = x_mid, color = "black", size = 0.5) + guides(color = FALSE) + scale_color_manual(values = c("blue", "red", "red","blue")) + ggtitle("Rating vs Sentiment Rating of Side Effect") + geom_point()
+```
+
+***
+**Hypothesis Testing**  
+
+***
+
+<details>
+  <summary> *Explorative Data Analysis* </summary>
+  
+> Plotting drug effectiveness
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+ggplot(dataset, aes(x = effectiveness)) + geom_bar(stat = "count")
+```
+
+> Plotting drug side effects for effectiveness
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+ggplot(dataset, aes(x = sideEffects)) + geom_bar(stat = "count") + facet_wrap(~ effectiveness) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+```
+
+> Drug effectiveness vs Patient Rating
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+ggplot(dataset, aes(x = rating)) + geom_bar(stat = "count") + facet_wrap(~ effectiveness) + theme(axis.text.x = element_text(angle = 90,hjust = 1,vjust = 0.5))
+ggplot(dataset, aes(x = effectiveness, rating)) + geom_boxplot()
+```
+
+> Distribution of patient ratings
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+hist(dataset$rating)
+```
+
+```{r}
+Drugs_summary <- Summarize(dataset$rating ~ dataset$urlDrugName, digits=3)
+head(Drugs_summary)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+qqnorm(dataset$rating)
+qqline(dataset$rating)
+```
+</details>
+
+In the Drug Review data set, there are different ratings provided by the patients for each drug based on the experiences they have with it. Patient can assign the drug effectiveiness varying from 'Ineffective' to 'Highly Effective', the side effects from 'No Side effects' to 'Extremely Severe Side Effects' and a rating from 1 to 10. After performing exploratory data analysis to obtain insights about the data on patient rating, effectiveness and side effects distributions, the histograms and QQ plots revealed that the variables do not follow a normal distribution. Therefore, the hypothesis of whether or not an extremely effective drug means a high rated drug will be tested through the Kruskal-Wallis H test.
+
+Kruskal-Wallis is a rank-based nonparametric test that can be used to determine if there are statistically significant differences between two or more groups of an independent variable on a continuous or ordinal dependent variable. It is considered the nonparametric alternative to the one-way ANOVA, and an extension of the Mann-Whitney U test to allow the comparison of more than two independent groups. 
+
+The testing hypothesis is:
+
+$H_0$ = An extremely effective drug means a high rated drug  
+$H_1$ = An extremely effective drug is not necessarily a high rated drug
+
+```{r}
+kruskal.test(dataset$rating ~ dataset$effectiveness)
+pairwise.wilcox.test(dataset$rating, dataset$effectiveness, p.adjust.method = "BH")
+```
+
+From the above, since the p-value is less than 0.05, the null hypothesis can be rejected. Therefore, an extremely effective drug is not necessarily a high rated drug. 
+
+Next, a chi-squared test is used to further examine if effectiveness is independent of as the rating changes at 0.05 significance level. Here, the hypothesis is:
+
+$H_0$ = The effectiveness review is independent of users' rating scores  
+$H_1$ = The effectiveness review is not independent of users' rating scores  
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+chi_test <- chisq.test(data.matrix(cbind(dataset$rating,dataset$effectiveness)))
+chi_test
+```
+
+The results shows that the p-value > 0.05 significance level. This suggests that the null hypothesis that the effectiveness review is independent of users' rating scores. cannot be rejected.
+
+Overall, it is apparent that an extremely effective drug does not mean a highly rated drug. Therefore, it can stated that even if a drug is classified as 'Highly Effective' it does not necessarily means it is the right drug that can be suggested to a patient, since the patient may not have felt comfortable due to its side effects.
+
+***
+### Conclusion
+
+In conclusion, by utilizing supervised learning algorithms, classification algorithms in Machine Learning allowed us to developed two recommender systems that can give a medical recommendation with an excellent efficiency and accuracy based on diagnosis and symptoms. With the Naive Bayes Classifier, it was do by an underlying probabilistic model, i.e. Bayes theorem, while with the decision trees it identify the most significant dimensions and interactions using regression models.
+
+Advantages of Classification Algorithms
+
+* It is easy to implement  
+* Requires small amount of data to train model  
+* Good results obtained in most of the cases  
+
+Disadvantages of Classification Algorithms
+
+* It’s assumption, class conditional independence else loss of accuracy
+* If you have no occurrences of a class label and a certain attribute value togetherthen the frequency-based probability estimate will be zero
+
+
+And so, our model can serve as a basis in the right direction, and with more data, the better the recommendation can become.
+
+***
+
+### Challenges & Solutions {.tabset .tabset-fade .tabset-pills}
+
+* Computer systems were not able to handle the programming because to required too much memory, in addition to ram power.
+    + More research on robust techniques were needed to build our model.
+
+* How to reuse a model code.
+    + Store model in MongoDB as R objects and load it when needed.
+
+<details>
+  <summary> *MongoDB Storage* </summary>
+```{r eval=FALSE}
+### STORE NAIVE MODEL to Mongo
+
+# Mongo_Train_Cond_Corpus$drop()
+Mongo_Train_Cond_Corpus$count()
+
+#upload corpus_condition_clean_dtm
+Mongo_Train_Cond_Corpus$insert(as.data.frame(Mongo_freq_words))
+Mongo_Train_Cond_Corpus$index()
+
+# Read Freq words from Mongo 
+Mongo_Read_Freq <- Mongo_Train_Cond_Corpus$find()
+ 
+# Prepare for Test
+Nav_model <- Mong_train_classifier
+
+# Upload the Nav_Model to Mongo
+saveRDS(Nav_model,"model/Nav_model.rds")
+fs_model$remove('Nav_model.rds')
+fs_model$upload("model/Nav_model.rds")
+
+# Downlaod Model fromMOngo 
+fs_model$download("Nav_model.rds","mongo/MongoNav.rds")
+```
+</details>
+
+***
+### Works Cited
+
+* Beata Strack, Jonathan P. DeShazo, Chris Gennings, Juan L. Olmo, Sebastian Ventura, Krzysztof J. Cios, and John N. Clore, “Impact of HbA1c Measurement on Hospital Readmission Rates: Analysis of 70,000 Clinical Database Patient Records,” BioMed Research International, vol. 2014, Article ID 781670, 11 pages, 2014. 
+
+* Dima, Shinechimeg et al. “Decision Tree Approach to the Impact of Parents' Oral Health on Dental Caries Experience in Children: A Cross-Sectional Study.” International journal of environmental research and public health vol. 15,4 692. 6 Apr. 2018, doi:10.3390/ijerph15040692
+
+* Dua, D. and Graff, C. (2019). [UCI Machine Learning Repository](http://archive.ics.uci.edu/ml). Irvine, CA: University of California, School of Information and Computer Science.
+
+* Meisamshabanpoor & Mahdavi, Mehregan. (2012). Implementation of a recommender system on medical recognition and treatment. International Journal of E-Education, E-Business, E-Management and E-Learning. 2. 315-318.
+
+* Learn by Marketing. [Naive Bayes Classification Simple Explanation.](http://www.learnbymarketing.com/methods/naive-bayes-classification/). Accessed April 27, 2019.
+
+* Learn by Marketing. [Naive Bayes in R Tutorial](http://www.learnbymarketing.com/tutorials/naive-bayes-in-r/). Accessed April 27, 2019. 
+
+* Liske, Debbie. [Tidy Sentiment Analysis in R.](https://www.datacamp.com/community/tutorials/sentiment-analysis-R). March 29, 2018. Accessed on May 1, 2019.
+
+* Podgorelec V., Kokol P., Stiglic B., Rozman I. Decision trees: An overview and their use in medicine. J. Med. Syst. 2002;26:445–463. doi: 10.1023/A:1016409317640.
+
+* Therneau, Terry M., Atkinson,Elizabeth J. ["An Introduction to Recursive Partitioning. Using the RPART Routines"](https://cran.r-project.org/web/packages/rpart/vignettes/longintro.pdf) Mayo Foundation. April 11, 2019
