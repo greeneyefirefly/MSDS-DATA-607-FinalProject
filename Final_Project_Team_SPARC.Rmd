@@ -554,6 +554,24 @@ qqline(dataset$rating)
 ```
 </details>
 
+Calculate Confidence Interval 
+
+Given a patient claim that a drug is ‘Extremely Effective’, with a 95% confidence calculate the probability of a drug having ‘No SideEffect’
+ 
+```{r}
+highlyEffectiveDrugs <- subset(dataset, effectiveness=="Highly Effective")
+meanRating <- mean(highlyEffectiveDrugs$rating)
+sdRating <- sd(highlyEffectiveDrugs$rating)
+noSideEffectDrugs <- subset(highlyEffectiveDrugs, sideEffects=='No Side Effects')
+p<- nrow(noSideEffectDrugs)/nrow(highlyEffectiveDrugs)
+n <- nrow(highlyEffectiveDrugs)
+SE<- sqrt(p * (1-p)/n)
+CILower <- p - 1.96 * SE
+CIUpper <- p + 1.96 * SE
+```
+
+Result: With 95% confidence, we can confirm that given a drug is rated ‘Extremely Effective’, we can say that the probability of drug having ‘No Side Effect’ is 0.3750536 and 0.4210406
+
 In the Drug Review data set, there are different ratings provided by the patients for each drug based on the experiences they have with it. Patient can assign the drug effectiveiness varying from 'Ineffective' to 'Highly Effective', the side effects from 'No Side effects' to 'Extremely Severe Side Effects' and a rating from 1 to 10. After performing exploratory data analysis to obtain insights about the data on patient rating, effectiveness and side effects distributions, the histograms and QQ plots revealed that the variables do not follow a normal distribution. Therefore, the hypothesis of whether or not an extremely effective drug means a high rated drug will be tested through the Kruskal-Wallis H test.
 
 Kruskal-Wallis is a rank-based nonparametric test that can be used to determine if there are statistically significant differences between two or more groups of an independent variable on a continuous or ordinal dependent variable. It is considered the nonparametric alternative to the one-way ANOVA, and an extension of the Mann-Whitney U test to allow the comparison of more than two independent groups. 
@@ -581,6 +599,82 @@ chi_test
 ```
 
 The results shows that the p-value > 0.05 significance level. This suggests that the null hypothesis that the effectiveness review is independent of users' rating scores. cannot be rejected.
+
+
+
+Following rejection of Kruskal wallis test, we will conduct "post hoc" procedure
+
+
+Dunn test for multiple comparisons 
+
+Since the Kruskal–Wallis test is significant, a post-hoc analysis can be performed to determine which levels of the independent variable differ from each other level.  Probably the most popular test for this is the Dunn test, which is performed with the dunnTest function in the FSA package.  Adjustments to the p-values could be made using the method option to control the familywise error rate or to control the false discovery rate. 
+
+The Dunn test is appropriate for groups with unequal numbers of observations.
+
+```{r}
+### Dunn test
+library(FSA)
+drug.dunn = dunnTest(dataset$rating ~ dataset$effectiveness,
+             
+              method="bonferroni")
+drug.dunn
+```
+
+Since our dataset has several values to compare, it can be beneficial to have R convert this table to a compact letter display for you.  The cldList function in the rcompanion package can do this.
+
+```{r include=FALSE}
+drug.dunn = drug.dunn$res
+drug.dunn
+```
+
+
+```{r}
+library(rcompanion)
+cldList(comparison = drug.dunn$Comparison,
+        p.value    = drug.dunn$P.adj,
+        threshold  = 0.05)
+```
+
+As we see, all the 5 levels of effectiveness have different letters, therefore, they are significant and independent of each other.
+
+Pairwise Mann–Whitney U-tests 
+
+Another post-hoc approach is to use pairwise Mann–Whitney U-tests.
+Mann–Whitney U-tests is also called the Wilcoxon Rank-Sum Test. To Calculate pairwise comparisons between group levels with corrections for multiple testing.
+
+To prevent the inflation of type I error rates, adjustments to the p-values can be made using the p.adjust.method option to control the familywise error rate or to control the false discovery rate.
+
+If there are several values to compare, it can be beneficial to have R convert this table to a compact letter display for you.  The multcompLetters function in the multcompView package can do this, but first the table of p-values must be converted to a full table.
+
+
+
+```{r}
+drug.wilcox = pairwise.wilcox.test(dataset$rating,
+                          dataset$effectiveness,
+                          p.adjust.method="none")
+drug.wilcox
+```
+
+
+```{r}
+drug.wilcox = drug.wilcox$p.value
+library(rcompanion)
+drug.wilcox.table = fullPTable(drug.wilcox)
+drug.wilcox.table
+```
+
+
+```{r}
+library(multcompView)
+multcompLetters(drug.wilcox.table, 
+                compare="<", 
+                threshold=0.05,
+                Letters=letters,
+                reversed = FALSE)
+```
+
+
+Values not sharing the same letter are significantly different. In this case , all the levels of effectiveness are significantly different.
 
 Overall, it is apparent that an extremely effective drug does not mean a highly rated drug. Therefore, it can stated that even if a drug is classified as 'Highly Effective' it does not necessarily means it is the right drug that can be suggested to a patient, since the patient may not have felt comfortable due to its side effects.
 
