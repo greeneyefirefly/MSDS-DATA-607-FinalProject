@@ -279,7 +279,6 @@ $H_1$ = An extremely effective drug is not necessarily a high rated drug
 
 ```{r}
 kruskal.test(dataset$rating ~ dataset$effectiveness)
-pairwise.wilcox.test(dataset$rating, dataset$effectiveness, p.adjust.method = "BH")
 ```
 
 From the above, since the p-value is less than 0.05, the null hypothesis can be rejected. Therefore, an extremely effective drug is not necessarily a high rated drug. 
