@@ -268,9 +268,9 @@ Thus, with 95% confidence, it can be confirmed that given a drug is rated ‘Ext
 
 </details>
 
-In the Drug Review data set, there are different ratings provided by the patients for each drug based on the experiences they have with it. Patient can assign the drug effectiveiness varying from 'Ineffective' to 'Highly Effective', the side effects from 'No Side effects' to 'Extremely Severe Side Effects' and a rating from 1 to 10. After performing exploratory data analysis to obtain insights about the data on patient rating, effectiveness and side effects distributions, the histograms and QQ plots revealed that the variables do not follow a normal distribution. Therefore, the hypothesis of whether or not an extremely effective drug means a high rated drug will be tested through the Kruskal-Wallis H test.
+> Kruskal-Wallis H test
 
-**Kruskal-Wallis Test**
+In the Drug Review data set, there are different ratings provided by the patients for each drug based on the experiences they have with it. Patient can assign the drug effectiveiness varying from 'Ineffective' to 'Highly Effective', the side effects from 'No Side effects' to 'Extremely Severe Side Effects' and a rating from 1 to 10. After performing exploratory data analysis to obtain insights about the data on patient rating, effectiveness and side effects distributions, the histograms and QQ plots revealed that the variables do not follow a normal distribution. Therefore, the hypothesis of whether or not an extremely effective drug means a high rated drug will be tested through the Kruskal-Wallis H test.
 
 Kruskal-Wallis is a rank-based nonparametric test that can be used to determine if there are statistically significant differences between two or more groups of an independent variable on a continuous or ordinal dependent variable. It is considered the nonparametric alternative to the one-way ANOVA, and an extension of the Mann-Whitney U test to allow the comparison of more than two independent groups. 
 
@@ -285,7 +285,7 @@ kruskal.test(dataset$rating ~ dataset$effectiveness)
 
 From the above, since the p-value is less than 0.05, the null hypothesis can be rejected. Therefore, an extremely effective drug is not necessarily a high rated drug. 
 
-**Dunn Test for Multiple Comparisons**
+> Dunn Test for Multiple Comparisons 
 
 Since the Kruskal–Wallis test is significant, two post-hoc analyses were performed to determine which levels of the independent variable differ from each other level. Probably the most popular test for this is the Dunn test, which is performed with the `dunnTest` function in the FSA package Adjustments to the p-values could be made using the method option to control the familywise error rate or to control the false discovery rate. 
 
@@ -310,7 +310,7 @@ cldList(comparison = drug.dunn$Comparison, p.value = drug.dunn$P.adj, threshold 
 
 As we see, all the 5 levels of effectiveness have different letters, therefore, they are significant and independent of each other.
 
-**Pairwise Mann–Whitney U-tests** 
+> Pairwise Mann–Whitney U-tests 
 
 Another post-hoc approach is to use Pairwise Mann–Whitney U-tests. Mann–Whitney U-tests is also called the Wilcoxon Rank-Sum Test. It is use to calculate pairwise comparisons between group levels with corrections for multiple testing. In order to prevent the inflation of Type I error rates, adjustments to the p-values can be made using the `p.adjust.method` option to control the familywise error rate or to control the false discovery rate.
 
@@ -423,6 +423,7 @@ review_summary %>%
   mutate(quadrant = case_when(mean_rating > x_mid & sentiment > 0 ~ "Positive-Postive", mean_rating <= x_mid & sentiment > 0 ~ "Negative-Positive", mean_rating <= x_mid & sentiment <= 0 ~ "Negative-Negative", TRUE ~ "Positive-Negative")) %>% ggplot(aes(x = mean_rating, y = sentiment, color = quadrant)) + geom_hline(yintercept=0, color = "black", size = 0.5) + geom_vline(xintercept = x_mid, color = "black", size = 0.5) + guides(color = FALSE) + scale_color_manual(values = c("blue", "red", "red", "blue")) + geom_point() + labs(title = "Drug Rating vs Sentiment Score of Side Effect Reviews", subtitle = "Blue - True Positive/True Negative, Red - False Positive/False Negative", y = "Sentiment Score", x = "Mean Drug Rating")
 ```
 
+Medicines can make you feel better and help you get well, but it's important to know that all medicines, both prescription and over-the-counter, have risks as well as benefits. The benefits of medicines are the helpful effects you get when you use them, such as less symptoms or curing an infection. The risks, however, are some things unwanted or unexpected that could happen to you when you use them. Risks could be less serious things, such as headaches, or more serious, such as liver damage. Thus, weighing the risks and making the choice to accept it in order to get the benefits you want.
 
 ***
 #### Decision Tree 
@@ -651,7 +652,7 @@ display: none;
 </style>
 <iframe src="https://rajwantmishra.shinyapps.io/SymptomsDiseasesRecommendation/" width="400" height="1000"></iframe>
 
-Access all the codes avaliable for this [Shiny App here](https://github.com/Rajwantmishra/msds/tree/master/607/Project5/607Project/checkme).
+Access all the codes available for this [Shiny App here](https://github.com/Rajwantmishra/msds/tree/master/607/Project5/607Project/checkme).
 
 ***
 
@@ -668,7 +669,7 @@ Advantages of Classification Algorithms
 Disadvantages of Classification Algorithms
 
 * It’s assumption, class conditional independence else loss of accuracy
-* If you have no occurrences of a class label and a certain attribute value togetherthen the frequency-based probability estimate will be zero
+* If you have no occurrences of a class label and a certain attribute value together then the frequency-based probability estimate will be zero
 
 
 And so, our model can serve as a basis in the right direction, and with more data, the better the recommendation can become.
