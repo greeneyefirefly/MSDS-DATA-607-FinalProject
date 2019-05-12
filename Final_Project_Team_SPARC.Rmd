@@ -33,10 +33,19 @@ The presentation is published on [Final Project](http://rpubs.com/greeneyefirefl
 
 All the project work and ideas were documented and available under [Project Documentation](https://github.com/greeneyefirefly/MSDS-DATA-607-FinalProject) on Github.
 
-```{r setup, include=FALSE}
-##################################################################
-#               Add All Required R Packages Here              #
-##################################################################
+***
+
+### Overview 
+
+According to the World Health Organization, more than 42% medication errors are caused by doctors because experts write the prescription according to their experiences which are quite limited. With the advancement of technology and data analytic technique such as data mining and recommender systems, it is possibilities to explore potential knowledge from diagnosis history records and help doctors to prescribe medication correctly. A recommendation of right medicine based on diagnosis can target healing and decreasing trial-and-error when prescribing drugs. This can may further decrease undesirable drug side-effects. Therefore, in this project, we developed two recommender systems that can give a medical recommendation with an excellent efficiency and accuracy based on diagnosis and symptoms. 
+
+#### Limitations
+
+Team SPARC is aware that this recommendation system will not be quite accurate since we are not specialist to say one medicine can indeed be recommended instead of another, nor can an performance test be conducted at this time. In addition, there is the limitation on data avabliable, for instance, there is no patient information, true diagnosis, cost of medicine, the insurance company that covers the specific type of drug, etc since these are not easily obtainable. Therefore, our model is thought as a basis in the right direction, and with more data, the better the recommendation can become.
+
+#### R Packages
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
 library(tidyverse)
 library(rpart)
 library(rpart.plot)
@@ -66,15 +75,6 @@ library(gridExtra)
 library(RMySQL)
 ```
 
-***
-
-### Overview 
-
-According to the World Health Organization, more than 42% medication errors are caused by doctors because experts write the prescription according to their experiences which are quite limited. With the advancement of technology and data analytic technique such as data mining and recommender systems, it is possibilities to explore potential knowledge from diagnosis history records and help doctors to prescribe medication correctly. A recommendation of right medicine based on diagnosis can target healing and decreasing trial-and-error when prescribing drugs. This can may further decrease undesirable drug side-effects. Therefore, in this project, we developed two recommender systems that can give a medical recommendation with an excellent efficiency and accuracy based on diagnosis and symptoms. 
-
-#### Limitations
-
-Team SPARC is aware that this recommendation system will not be quite accurate since we are not specialist to say one medicine can indeed be recommended instead of another, nor can an performance test be conducted at this time. In addition, there is the limitation on data avabliable, for instance, there is no patient information, true diagnosis, cost of medicine, the insurance company that covers the specific type of drug, etc since these are not easily obtainable. Therefore, our model is thought as a basis in the right direction, and with more data, the better the recommendation can become.
 
 ***
 ### Methodology   
@@ -270,8 +270,6 @@ Thus, with 95% confidence, it can be confirmed that given a drug is rated ‘Ext
 
 In the Drug Review data set, there are different ratings provided by the patients for each drug based on the experiences they have with it. Patient can assign the drug effectiveiness varying from 'Ineffective' to 'Highly Effective', the side effects from 'No Side effects' to 'Extremely Severe Side Effects' and a rating from 1 to 10. After performing exploratory data analysis to obtain insights about the data on patient rating, effectiveness and side effects distributions, the histograms and QQ plots revealed that the variables do not follow a normal distribution. Therefore, the hypothesis of whether or not an extremely effective drug means a high rated drug will be tested through the Kruskal-Wallis H test.
 
-> Kruskal-Wallis Test
-
 Kruskal-Wallis is a rank-based nonparametric test that can be used to determine if there are statistically significant differences between two or more groups of an independent variable on a continuous or ordinal dependent variable. It is considered the nonparametric alternative to the one-way ANOVA, and an extension of the Mann-Whitney U test to allow the comparison of more than two independent groups. 
 
 The testing hypothesis is:
@@ -352,9 +350,9 @@ Overall, it is apparent that an extremely effective drug does not mean a highly 
 
 ***
 
-Using the effectiveness and the side effects reviews from the Drug Reviews data, a sentimental analysis was done to identify the user's experiences with the specific drug. In this analysis, the lexicon AFINN words and associated ratings from Finn Årup Nielsen were used. Moreover, since the hypothesis testing found that some results would have an overall negative experience even though their drug ratings were very high, conditions were establish to reverse sentiment ratings if they are not accurate representations of the reviews. This will be statistically tested later after examination of the reviews.
+Using the effectiveness and the side effects reviews from the Drug Reviews data, a sentimental analysis was done to identify the user's experiences with the specific drug. In this analysis, the lexicon AFINN words and associated ratings from Finn Årup Nielsen were used. Moreover, since the hypothesis testing found that some results would have an overall negative experience even though their drug ratings were very high, conditions were establish to reverse sentiment ratings if they are not accurate representations of the reviews. 
 
-As a result, firstly, the review of drug benefits shows that there are more true positive sentiments for highly rated drugs than low rated. However, the analysis did produced 15% of sentiment that are inaccurate representations of how the drug benefit review and drug rating are classified in this data set. 
+As a result, firstly, the reviews of drug benefits shows that there are more true (indicated in blue) positive sentiments for highly rated drugs than true negative sentiments for low rated drugs. However, the analysis did produced 15% of sentiments that are inaccurate representations of how the drug benefit review and drug rating are classified in this data set. That is, indicated in red, there are highly rated drugs with an overall negative sentiment score for their "benefits" reviews, and low rated drugs with positive "benefits" reviews.
 
 <details>
   <summary> *Drug Benefit Reviews* </summary>
@@ -387,10 +385,10 @@ x_mid = 5
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 review_summary %>% 
-  mutate(quadrant = case_when(mean_rating > x_mid & sentiment > 0 ~ "Positive-Postive", mean_rating <= x_mid & sentiment > 0 ~ "Negative-Positive", mean_rating <= x_mid & sentiment <= 0 ~ "Negative-Negative", TRUE ~ "Positive-Negative")) %>% ggplot(aes(x = mean_rating, y = sentiment, color = quadrant)) + geom_hline(yintercept=0, color = "black", size = 0.5) + geom_vline(xintercept = x_mid, color = "black", size = 0.5) + guides(color = FALSE) + scale_color_manual(values = c("blue", "red", "red","blue")) + ggtitle("Rating vs Sentiment Rating of Effectiveness") + geom_point()
+  mutate(quadrant = case_when(mean_rating > x_mid & sentiment > 0 ~ "Positive-Postive", mean_rating <= x_mid & sentiment > 0 ~ "Negative-Positive", mean_rating <= x_mid & sentiment <= 0 ~ "Negative-Negative", TRUE ~ "Positive-Negative")) %>% ggplot(aes(x = mean_rating, y = sentiment, color = quadrant)) + geom_hline(yintercept=0, color = "black", size = 0.5) + geom_vline(xintercept = x_mid, color = "black", size = 0.5) + guides(color = FALSE) + scale_color_manual(values = c("blue", "red", "red", "blue")) + geom_point() + labs(title = "Drug Rating vs Sentiment Score of Benefit Reviews", subtitle = "Blue - True Positive/True Negative, Red - False Positive/False Negative", y = "Sentiment Score", x = "Mean Drug Rating")
 ```
 
-Secondly, the review of drug side effect review shows that there are also more true positive sentiments for highly rated drugs than low rated. In this case, the analysis did produced 18% of sentiment that are inaccurate representations of how the drug side effect reviews and drug rating are classified in this data set. 
+Secondly, the review of drug side effect review shows that there are also more true positive sentiments for highly rated drugs than true negative sentiments for low rated drugs. Moreover, the analysis did produced 18% of sentiment that are inaccurate representations of how the drug side effect reviews and drug rating are classified in this data set. That is, there are highly rated drugs with an overall negative sentiment score for their "side effect" reviews, and low rated drugs with positive "side effect" reviews.
 
 <details>
   <summary> *Side Effect Reviews* </summary>
@@ -420,7 +418,7 @@ review_summary <- reviews.afinn %>%
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 review_summary %>% 
-  mutate(quadrant = case_when(mean_rating > x_mid & sentiment > 0 ~ "Positive-Postive", mean_rating <= x_mid & sentiment > 0 ~ "Negative-Positive", mean_rating <= x_mid & sentiment <= 0 ~ "Negative-Negative", TRUE ~ "Positive-Negative")) %>% ggplot(aes(x = mean_rating, y = sentiment, color = quadrant)) + geom_hline(yintercept=0, color = "black", size = 0.5) + geom_vline(xintercept = x_mid, color = "black", size = 0.5) + guides(color = FALSE) + scale_color_manual(values = c("blue", "red", "red","blue")) + ggtitle("Rating vs Sentiment Rating of Side Effect") + geom_point()
+  mutate(quadrant = case_when(mean_rating > x_mid & sentiment > 0 ~ "Positive-Postive", mean_rating <= x_mid & sentiment > 0 ~ "Negative-Positive", mean_rating <= x_mid & sentiment <= 0 ~ "Negative-Negative", TRUE ~ "Positive-Negative")) %>% ggplot(aes(x = mean_rating, y = sentiment, color = quadrant)) + geom_hline(yintercept=0, color = "black", size = 0.5) + geom_vline(xintercept = x_mid, color = "black", size = 0.5) + guides(color = FALSE) + scale_color_manual(values = c("blue", "red", "red", "blue")) + geom_point() + labs(title = "Drug Rating vs Sentiment Score of Side Effect Reviews", subtitle = "Blue - True Positive/True Negative, Red - False Positive/False Negative", y = "Sentiment Score", x = "Mean Drug Rating")
 ```
 
 
